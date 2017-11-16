@@ -7,40 +7,52 @@
 void DECODE_TEST_CASE_1(simple_resp::decoder &dec)
 {
     std::string input("*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n");
-    std::vector<std::string> expect{"LLEN", "mylist"};
-    simple_resp::decode_result result = dec.decode(input);
-    assert(result.status == simple_resp::OK);
-    assert(result.response == expect);
+    simple_resp::decode_context ctx([](std::vector<std::string>& result){
+
+            std::vector<std::string> expect{"LLEN", "mylist"};
+            assert(result == expect);
+            });
+    ctx.append_new_buffer(input);
+    dec.decode(ctx);
     std::cout << "=> PASS " << __FUNCTION__ << std::endl;
 }
 
 void DECODE_TEST_CASE_2(simple_resp::decoder& dec)
 {
     std::string input("*3\r\n:1\r\n:2\r\n:3\r\n");
-    std::vector<std::string> expect{":1", ":2", ":3"};
-    simple_resp::decode_result result = dec.decode(input);
-    assert(result.status == simple_resp::OK);
-    assert(result.response == expect);
+    simple_resp::decode_context ctx([](std::vector<std::string>& result){
+
+            std::vector<std::string> expect{":1", ":2", ":3"};
+            assert(result == expect);
+            });
+    ctx.append_new_buffer(input);
+    dec.decode(ctx);
     std::cout << "=> PASS " << __FUNCTION__ << std::endl;
 }
 
 void DECODE_TEST_CASE_3(simple_resp::decoder& dec)
 {
     std::string input("*5\r\n:1\r\n:2\r\n:3\r\n:4\r\n$6\r\nfoobar\r\n");
-    std::vector<std::string> expect{":1", ":2", ":3", ":4", "foobar"};
-    simple_resp::decode_result result = dec.decode(input);
-    assert(result.status == simple_resp::OK);
-    assert(result.response == expect);
+    simple_resp::decode_context ctx([](std::vector<std::string>& result){
+
+            std::vector<std::string> expect{":1", ":2", ":3", ":4", "foobar"};
+            assert(result == expect);
+            });
+    ctx.append_new_buffer(input);
+    dec.decode(ctx);
     std::cout << "=> PASS " << __FUNCTION__ << std::endl;
 }
 
 void DECODE_TEST_CASE_4(simple_resp::decoder& dec)
 {
     std::string input("*3\r\n$3\r\nSET\r\n$1\r\na\r\n$1\r\nb\r\n:4\r\n$3\r\nfoo\r\n");
-    std::vector<std::string> expect{"SET", "a", "b"};
-    simple_resp::decode_result result = dec.decode(input);
-    assert(result.status == simple_resp::OK);
-    assert(result.response == expect);
+    simple_resp::decode_context ctx( [] (std::vector<std::string>& result){
+            std::vector<std::string> expect{"SET", "a", "b"};
+            assert(result == expect);
+            return;
+            });
+    ctx.append_new_buffer(input);
+    dec.decode(ctx);
     std::cout << "=> PASS " << __FUNCTION__ << std::endl;
 }
 

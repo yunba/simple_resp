@@ -7,6 +7,9 @@
 
 namespace simple_resp {
 
+using vector_len_type = std::vector<std::string>::size_type;
+using string_len_type = std::string::size_type;
+
 enum RESP_TYPE {
     SIMPLE_STRINGS = '+',
     ERRORS = '-',
@@ -34,18 +37,35 @@ struct encode_result {
     std::string response;
 };
 
-struct decode_result {
-    STATUS status;
-    std::vector<std::string> response;
+
+typedef void (*request_handler)(std::vector<std::string>&);
+class decode_context{
+    public:
+        decode_context(request_handler); 
+        ~decode_context(){};
+
+        void append_new_buffer(const std::string& buffer);
+        void push_element(const std::string& element);
+
+    private:
+        request_handler handler;
+        PARSE_STATE state;
+
+        vector_len_type reading_list_size;
+        string_len_type reading_str_size;
+        std::string buffered_input;
+        std::vector<std::string> req_list;
+
+    friend class decoder;
 };
 
 class decoder {
 public:
     decoder() = default;
-    decode_result decode(const std::string &input);
+    void decode(decode_context& ctx);
 
 private:
-    decode_result parse_arrays(const std::string &input);
+    void parse(decode_context& ctx);
 
 public:
     // decoder is non-copyable.

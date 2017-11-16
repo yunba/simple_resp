@@ -2,134 +2,159 @@
 
 namespace simple_resp {
 
-using vector_num_type = std::vector<std::string>::size_type;
-using string_num_type = std::string::size_type;
-
-decode_result decoder::decode(const std::string &input)
-{
-    decode_result result;
-    result.status = OK;
-
-    if (input.length() < 0) {
-        result.status = EMPTY_INPUT;
-        return result;
+    decode_context::decode_context(request_handler req_handler){
+        state = INIT;
+        this->handler = req_handler;
+        buffered_input = "";
+        reading_list_size = 0;
+        req_list.clear();
     }
 
-    switch (input[0]) {
-        case SIMPLE_STRINGS:
-            break;
-        case ERRORS:
-            break;
-        case INTEGERS:
-            break;
-        case BULK_STRINGS:
-            break;
-        case ARRAYS:
-            result = parse_arrays(input);
-            break;
-        default:
-            result.status = INVAILID_RESP_TYPE;
-    }
-    return result;
-}
-
-decode_result decoder::parse_arrays(const std::string &input)
-{
-    PARSE_STATE state = INIT;
-    std::string token;
-    decode_result result;
-
-    string_num_type bulk_string_length = 0;
-    vector_num_type args_num = 0;
-
-    result.status = OK;
-
-    if (*input.begin() != ARRAYS) {
-        result.status = INVAILID_RESP_TYPE;
-        result.response.clear();
-        return result;
+    void decode_context::append_new_buffer(const std::string& buffer)
+    {
+        buffered_input.append(buffer);
     }
 
-    for (auto it = input.begin() + 1, token_start = input.begin() + 1; it != input.end(); it++) {
-        if (args_num > 0 && result.response.size() == args_num) {
-            return result;
+    void decode_context::push_element(const std::string& element)
+    {
+        reading_str_size = 0;
+        req_list.push_back(element);
+        if(req_list.size() == reading_list_size)
+        {
+            handler(req_list);
+            req_list.clear();
+            reading_list_size = 0;
+            state = INIT;
         }
-        if (*it == '\r' && *(it + 1) == '\n') {
-            token = std::string(token_start, it);
-            switch (state) {
-                case INIT:
-                    args_num = static_cast<vector_num_type>(std::stoi(token));
-                    state = PARSE_ELEMENTS;
-                    break;
-                case PARSE_ELEMENTS:
-                    switch (token[0]) {
-                        case INTEGERS:
-                            result.response.emplace_back(token);
-                            break;
-                        case BULK_STRINGS:
-                            bulk_string_length = static_cast<string_num_type>(std::stoi(token.substr(1, token.length() - 1)));
-                            state = PARSE_BLUK_STRINGS;
-                            break;
-                        default:
-                            result.response.clear();
-                            result.status = INVAILID_RESP_FORMAT;
-                            return result;
-                    }
-                    break;
-                case PARSE_BLUK_STRINGS:
-                    if (bulk_string_length <= 0) {
-                        result.response.clear();
-                        result.status = INVAILID_RESP_FORMAT;
-                        return result;
-                    }
-                    if (token.length() != bulk_string_length) {
-                        result.response.clear();
-                        result.status = INVAILID_RESP_FORMAT;
-                        return result;
-                    }
-                    result.response.emplace_back(token);
-                    state = PARSE_ELEMENTS;
-                    break;
-            }
-            it = it + 1;             // skip '\n'
-            token_start = it + 1;    // point to next char (not '\r' or '\n')
-            continue;
+        else
+        {
+            state = PARSE_ELEMENTS;
         }
     }
 
-    if (args_num > 0 && result.response.size() == args_num) {
-        return result;
-    } else {
-        result.response.clear();
-        result.status = UNKNOWN_INTERNAL_ERROR;
-        return result;
+    void decoder::decode(decode_context& ctx)
+    {
+        if (ctx.buffered_input.length() <= 0) {
+            return;
+        }
+
+        //decoder is used for coming request, so we just handle arrays
+        parse(ctx);
     }
-}
 
-encode_result encoder::encode(const RESP_TYPE &type, const std::vector<std::string> &args)
-{
-    encode_result result;
+    void decoder::parse(decode_context& ctx)
+    {
+        for(auto i = 0, token_start = 0; 
+                i < ctx.buffered_input.length(); i++){
 
-    result.status = OK;
+            if(ctx.buffered_input.at(i) == '\r' && 
+                i + 1 != ctx.buffered_input.length() &&
+                ctx.buffered_input.at(i + 1) == '\n')
+            {
 
-    switch (type) {
-        case SIMPLE_STRINGS:
-            result.response = "+" + args[0] + "\r\n";  // only takes the first element and ignore rest
-            break;
-        case ERRORS:
-            result.response = "-" + args[0] + "\r\n";  // only takes the first element and ignore rest
-            break;
-        case INTEGERS:
-            break;
-        case BULK_STRINGS:
-            break;
-        case ARRAYS:
-            result.response = "*" + std::to_string(args.size()) + "\r\n";
-            for (auto it = args.begin(); it != args.end(); ++it) {
-                result.response += "$" + std::to_string(it->length()) + "\r\n" + *it + "\r\n";
+                //maybe you reach the end of a token
+
+                auto token = ctx.buffered_input.substr(token_start, i - token_start);
+                //most of the time, token should be all buffered, but there are some exception
+                bool is_token_done = true;
+                switch(ctx.state)
+                {
+                    case INIT:
+                        {
+
+                            //read the length of request
+                            ctx.reading_list_size = 
+                                static_cast<vector_len_type>(
+                                        std::stoi(token.substr(1, token.length() - 1)));
+
+                            ctx.state = PARSE_ELEMENTS;
+                        }
+                        break;
+                    case PARSE_ELEMENTS:
+                        {
+                            switch(token[0])
+                            {
+                                //FIXME: copied from old source, I don't think this is right code
+                                case INTEGERS:
+                                    ctx.req_list.emplace_back(token);
+                                    break;
+                                case BULK_STRINGS:
+                                    ctx.reading_str_size = static_cast<string_len_type>(std::stoi(
+                                                token.substr(1, token.length() - 1)
+                                                ));
+                                    if(0 == ctx.reading_str_size)
+                                    {
+                                        //zero len str, just push back an empty string
+                                        ctx.push_element("");
+                                    }
+                                    else
+                                    {
+                                        ctx.state = PARSE_BLUK_STRINGS;
+                                        if(ctx.buffered_input.length() < i + ctx.reading_str_size){
+                                            //the input is not fully buffered,
+                                            //so don't waste your time, just return;
+                                            return;
+                                        }
+                                    }
+                                    break;
+                                default:
+                                    //unknow state!!
+                                    break;
+                            }
+                        }
+                        break;
+                    case PARSE_BLUK_STRINGS:
+                        if(token.length() < ctx.reading_str_size)
+                        {
+                            //this '\n\r' might be one the context of string
+                            is_token_done = false;
+                        }
+                        else if(token.length() > ctx.reading_str_size)
+                        {
+                            //something might go wrong
+                            //should set up a handler to handle error
+                        }
+                        else
+                        {
+                            ctx.push_element(token);
+                        }
+                }
+
+                if(is_token_done){
+                    //skip '\n'
+                    i++;
+
+                    //move to the next char after '\n'
+                    token_start = i + 1;
+                }
             }
-            break;
+        }
     }
-    return result;
-}
+
+    encode_result encoder::encode(const RESP_TYPE &type, const std::vector<std::string> &args)
+    {
+        encode_result result;
+
+        result.status = OK;
+
+        switch (type) {
+            case SIMPLE_STRINGS:
+                result.response = "+" + args[0] + "\r\n";  // only takes the first element and ignore rest
+                break;
+            case ERRORS:
+                result.response = "-" + args[0] + "\r\n";  // only takes the first element and ignore rest
+                break;
+            case INTEGERS:
+                break;
+            case BULK_STRINGS:
+                break;
+            case ARRAYS:
+                result.response = "*" + std::to_string(args.size()) + "\r\n";
+                for (auto it = args.begin(); it != args.end(); ++it) {
+                    result.response += "$" + std::to_string(it->length()) + "\r\n" + *it + "\r\n";
+                }
+                break;
+        }
+        return result;
+    }
 } // namespace simple_resp
