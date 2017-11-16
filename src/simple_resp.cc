@@ -147,6 +147,7 @@ namespace simple_resp {
             case INTEGERS:
                 break;
             case BULK_STRINGS:
+                result.response = "$" + std::to_string(args[0].length()) + "\r\n" + args[0] + "\r\n";
                 break;
             case ARRAYS:
                 result.response = "*" + std::to_string(args.size()) + "\r\n";
