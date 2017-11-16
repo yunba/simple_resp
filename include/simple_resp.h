@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <functional>
 
 #ifndef SIMPLE_RESP_SIMPLE_RESP_H
 #define SIMPLE_RESP_SIMPLE_RESP_H
@@ -38,7 +39,7 @@ struct encode_result {
 };
 
 
-typedef void (*request_handler)(std::vector<std::string>&);
+using request_handler = std::function<void(std::vector<std::string>&)>;
 class decode_context{
     public:
         decode_context(request_handler); 

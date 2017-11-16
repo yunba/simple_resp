@@ -7,9 +7,9 @@
 void DECODE_TEST_CASE_1(simple_resp::decoder &dec)
 {
     std::string input("*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n");
-    simple_resp::decode_context ctx([](std::vector<std::string>& result){
+    std::vector<std::string> expect{"LLEN", "mylist"};
+    simple_resp::decode_context ctx([expect](std::vector<std::string>& result){
 
-            std::vector<std::string> expect{"LLEN", "mylist"};
             assert(result == expect);
             });
     ctx.append_new_buffer(input);
