@@ -48,6 +48,8 @@ class decode_context{
         void append_new_buffer(const std::string& buffer);
         void push_element(const std::string& element);
 
+        int get_session_id() { return session_id;}
+
     private:
         int session_id;
         int last_ack_command;

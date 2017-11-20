@@ -8,12 +8,15 @@ void DECODE_TEST_CASE_1(simple_resp::decoder &dec)
 {
     std::string input("*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n");
     std::vector<std::string> expect{"LLEN", "mylist"};
-    simple_resp::decode_context ctx(0, [expect](int command_id, std::vector<std::string>& result){
-
+    int i = 0;
+    simple_resp::decode_context ctx(0, [&i, expect](int command_id, std::vector<std::string>& result){
+            i ++;
             assert(result == expect);
             });
     ctx.append_new_buffer(input);
     dec.decode(ctx);
+    dec.decode(ctx);
+    assert(i == 1);
     std::cout << "=> PASS " << __FUNCTION__ << std::endl;
 }
 

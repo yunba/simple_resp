@@ -48,7 +48,8 @@ namespace simple_resp {
 
     void decoder::parse(decode_context& ctx)
     {
-        for(auto i = 0, token_start = 0; 
+        int token_start = 0;
+        for(auto i = 0; 
                 i < ctx.buffered_input.length(); i++){
 
             if(ctx.buffered_input.at(i) == '\r' && 
@@ -133,6 +134,7 @@ namespace simple_resp {
                 }
             }
         }
+        ctx.buffered_input = ctx.buffered_input.substr(token_start, ctx.buffered_input.size() - token_start);
     }
 
     encode_result encoder::encode(const RESP_TYPE &type, const std::vector<std::string> &args)
