@@ -2,9 +2,12 @@
 
 namespace simple_resp {
 
-    decode_context::decode_context(request_handler req_handler){
+    decode_context::decode_context(int session_id, request_handler req_handler){
         state = INIT;
         this->handler = req_handler;
+        this->session_id = session_id;
+        last_ack_command = 0;
+        last_command_id = 0;
         buffered_input = "";
         reading_list_size = 0;
         req_list.clear();
@@ -21,7 +24,8 @@ namespace simple_resp {
         req_list.push_back(element);
         if(req_list.size() == reading_list_size)
         {
-            handler(req_list);
+            handler(last_command_id, req_list);
+            last_command_id ++;
             req_list.clear();
             reading_list_size = 0;
             state = INIT;
