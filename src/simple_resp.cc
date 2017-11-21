@@ -12,9 +12,15 @@ namespace simple_resp {
         reading_list_size = 0;
         req_list.clear();
     }
+    void decode_context::pop_buffer(int start)
+    {
+        std::lock_guard<std::mutex> guard(buffer_mutex);
+        buffered_input = buffered_input.substr(start, buffered_input.size() - start);
+    }
 
     void decode_context::append_new_buffer(const std::string& buffer)
     {
+        std::lock_guard<std::mutex> guard(buffer_mutex);
         buffered_input.append(buffer);
     }
 
@@ -98,7 +104,7 @@ namespace simple_resp {
                                         if(ctx.buffered_input.length() < i + ctx.reading_str_size){
                                             //the input is not fully buffered,
                                             //so don't waste your time, just return;
-                                            return;
+                                            break;
                                         }
                                     }
                                     break;
@@ -134,7 +140,7 @@ namespace simple_resp {
                 }
             }
         }
-        ctx.buffered_input = ctx.buffered_input.substr(token_start, ctx.buffered_input.size() - token_start);
+        ctx.pop_buffer(token_start);
     }
 
     encode_result encoder::encode(const RESP_TYPE &type, const std::vector<std::string> &args)
