@@ -149,6 +149,7 @@ namespace simple_resp {
 
         result.status = OK;
 
+        result.response = "*" + std::to_string(list.size()) + "\r\n";
         for(auto i : list)
         {
             RESP_TYPE type = i.type;
@@ -201,8 +202,8 @@ namespace simple_resp {
                 break;
             case ARRAYS:
                 result.response = "*" + std::to_string(args.size()) + "\r\n";
-                for (auto it = args.begin(); it != args.end(); ++it) {
-                    result.response += "$" + std::to_string(it->length()) + "\r\n" + *it + "\r\n";
+                for (auto it : args) {
+                    result.response += "$" + std::to_string(it.length()) + "\r\n" + it + "\r\n";
                 }
                 break;
         }
